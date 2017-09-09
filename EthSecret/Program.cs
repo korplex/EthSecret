@@ -19,7 +19,7 @@ namespace EthSecret
                 HashWatch.Activate();
             }).Start();
 
-            for (var i = 0; i < 32; i++)
+            for (var i = 0; i < 40; i++)
             {
                 new Thread(() =>
                 {
