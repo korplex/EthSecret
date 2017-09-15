@@ -19,9 +19,9 @@ namespace EthSecret
             {
                 var prevNumb = EthWalletParser.AccountsTested;
 
-                Thread.Sleep(500);
+                Thread.Sleep(5000);
 
-                var num = (EthWalletParser.AccountsTested - prevNumb) / 0.5f;
+                var num = (EthWalletParser.AccountsTested - prevNumb) / 5;
 
                 Console.Title = $"EthSecret - {EthWalletParser.PositiveAccounts}/{EthWalletParser.AccountsTested} - {num} PK/s";
             }

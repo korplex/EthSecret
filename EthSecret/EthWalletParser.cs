@@ -12,72 +12,82 @@ using log4net;
 using log4net.Core;
 using Nethereum.Util;
 using Newtonsoft.Json;
+using System.Threading;
 
 namespace EthSecret
 {
+    public enum EthGeth
+    {
+        Local = 0,
+        Infura = 1
+    }
+
     public class EthWalletParser
     {
-        private readonly Web3 _web3;
-
-        public const string Url = "http://www.ethersecret.com/";
-        private readonly ILog _logger = LogManager.GetLogger(typeof(EthWalletParser));
-
         public static int AccountsTested = 0;
         public static int PositiveAccounts = 0;
 
-        public EthWalletParser()
-        {
-            _web3 = new Web3("http://localhost:8545");
-        }
+        private static ILog _logger = LogManager.GetLogger(typeof(EthWalletParser));
 
-        public async Task Parse()
+        public static async Task Run(EthGeth api)
         {
+            string _apiURL = "http://localhost:8545";
+
+            switch (api)
+            {
+                case EthGeth.Infura:
+                    _apiURL = "https://mainnet.infura.io/";
+                    break;
+            }
+
+            var _web3 = new Web3(_apiURL);
+
+            Console.WriteLine($"Starting on {_apiURL}.");
+
+            string privateKey = null;
+            string publicKey = null;
+
             try
             {
-                using (var client = new HttpClient())
+                using (var client = new HttpClient(new HttpClientHandler { UseProxy = false }))
                 {
                     while (true)
                     {
-                        var privateKey = GeneratePrivateKey();
-
-                        var publicKey = Web3.GetAddressFromPrivateKey(privateKey);
-
-                        //var balance = await _web3.Eth.GetBalance.SendRequestAsync(publicKey);
-                        //var ethBalance = Web3.Convert.FromWei(balance.Value, 18);
-
-                        var req = new
-                        {
-                            method = "eth_getBalance",
-                            @params = new[] { publicKey, "pending" },
-                            id = 1,
-                            jsonrpc = "2.0"
-                        };
-
-                        AccountsTested++;
-
-                        var balanceResponse = client.PostAsync("http://localhost:8545",
-                            new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8,
-                                "application/json")).Result;
-
-                        var balanceContent = await balanceResponse.Content.ReadAsStringAsync();
-
-                        var ethBalanceObject = JsonConvert.DeserializeObject<BalanceResult>(balanceContent);
+                        privateKey = GeneratePrivateKey();
+                        publicKey = Web3.GetAddressFromPrivateKey(privateKey);
 
                         try
                         {
-                            var ethBalance = Web3.Convert.FromWei(BigInteger.Parse(ethBalanceObject.Result.Substring(2), NumberStyles.HexNumber));
-
-                            Console.WriteLine($"{privateKey} ({publicKey}) ----> {ethBalance} ETH");
-
-                            if (ethBalance > 0)
+                            var req = new
                             {
-                                PositiveAccounts++;
-                                _logger.Info($"{privateKey} ({publicKey}) ----> {ethBalance} ETH");
+                                method = "eth_getBalance",
+                                @params = new[] { publicKey, "pending" },
+                                id = 1,
+                                jsonrpc = "2.0"
+                            };
+
+                            using (var balanceResponse = await client.PostAsync(_apiURL, new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json")))
+                            {
+                                var balanceContent = await balanceResponse.Content.ReadAsStringAsync();
+
+                                var ethBalanceObject = JsonConvert.DeserializeObject<BalanceResult>(balanceContent);
+                                var ethBalance = Web3.Convert.FromWei(BigInteger.Parse(ethBalanceObject.Result.Substring(2), NumberStyles.HexNumber));
+
+                                Console.WriteLine($"{privateKey} ({publicKey}) ----> {ethBalance} ETH");
+
+                                if (ethBalance > 0)
+                                {
+                                    Interlocked.Increment(ref PositiveAccounts);
+
+                                    _logger.Info($"{privateKey} ({publicKey}) ----> {ethBalance} ETH");
+                                }
+
+                                Interlocked.Increment(ref AccountsTested);
                             }
                         }
                         catch (Exception e)
                         {
-                            Console.WriteLine(e.Message);
+                            _logger.Error(e.Message);
                             _logger.Info($"Trouble with {privateKey} ({publicKey})...");
                         }
                     }
@@ -85,16 +95,15 @@ namespace EthSecret
             }
             catch (Exception e)
             {
-                Console.WriteLine(e.Message);
+                _logger.Info($"Trouble with {privateKey} ({publicKey})...");
+                _logger.Info(e.Message);
             }
         }
 
         public class BalanceResult
         {
             public string JsonRpc { get; set; }
-
             public int Id { get; set; }
-
             public string Result { get; set; }
         }
 
