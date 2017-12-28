@@ -21,19 +21,13 @@ namespace EthSecret
 
             var maxThreads = int.Parse(Console.ReadLine());
 
-            Console.WriteLine("Select :");
-            Console.WriteLine("0 - http://localhost:8545");
-            Console.WriteLine("1 - http://mainnet.infura.io/");
+            new Thread(HashWatch.Activate).Start();
 
-            var api = (EthGeth) int.Parse(Console.ReadLine());
-
-            new Thread(() => { HashWatch.Activate(); }).Start();
-
-            ServicePointManager.DefaultConnectionLimit = maxThreads + 16;
+            //ServicePointManager.DefaultConnectionLimit = maxThreads + 16;
 
             for (var i = 0; i < maxThreads; i++)
             {
-                Task.Factory.StartNew(() => EthWalletParser.Run(api), TaskCreationOptions.LongRunning);
+                Task.Factory.StartNew(EthWalletParser.Run, TaskCreationOptions.LongRunning);
             }
         }
     }

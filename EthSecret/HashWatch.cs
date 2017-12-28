@@ -9,11 +9,11 @@ namespace EthSecret
 {
     public class HashWatch
     {
-        private static ILog _logger = LogManager.GetLogger(typeof(HashWatch));
+        private static readonly ILog Logger = LogManager.GetLogger(typeof(HashWatch));
 
         public static void Activate()
         {
-            _logger.Info("Starting Eth Parser...");
+            Logger.Info("Starting Eth Parser...");
 
             while (true)
             {
